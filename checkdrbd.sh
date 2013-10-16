@@ -45,6 +45,11 @@ MAXWAIT=240
 # MySQL fatal errors, which will provoke a node switch
 # (should be completed with next bad events...)
 MYSQL_FATAL_ERRORS='(2000|2001|2002|2003|2005|2008)'
+# how to handle potential split-brain
+# 0: manual
+# 1: invalidate local data
+# 2: invalidate remote data
+SPLIT_BRAIN_METHOD=0
 # maintenance flag: used to do maintenance on MySQL without switch between nodes
 MAINTENANCE="/etc/keepalived/maintenance"
 
@@ -187,7 +192,6 @@ set_fault() {
 kill_mysql() {
 	$LOGDEBUG "Kill mysql"
 	# Remove mysql stats crontab
-	/usr/sbin/adm_mysql_stats remove
 	if [ -e "$MYSQLPID" ] # File exist
 	then
 		if /bin/kill -0 $( cat "$MYSQLPID" ) # process exist
@@ -241,7 +245,10 @@ set_drbd_secondary() {
 		return 1
 	fi
 	$LOGDEBUG "Sync DRBD"
-	$DRBDADM invalidate $DRBDRESOURCE
+	if [ $SPLIT_BRAIN_METHOD == 1 ]
+	then
+		$DRBDADM invalidate $DRBDRESOURCE
+	fi
 	$DRBDADM connect $DRBDRESOURCE
 	sleep 1
 	init_status
@@ -338,7 +345,6 @@ set_master() {
 		touch $warmstate
 		$MYSQLINIT start
 		# Install mysql stats crontab
-		/usr/sbin/adm_mysql_stats install
 		
 		$LOGDEBUG "Waiting for MySQL ..."
 		for i in $( seq 1 $MAXWAIT )
@@ -379,7 +385,10 @@ set_master() {
 	fi
 
 	# We connect to DRBD _after_ MySQL has started, to limit IOPS
-	#$DRBDADM invalidate-remote $DRBDRESOURCE
+	if [ $SPLIT_BRAIN_METHOD == 2 ]
+	then
+		$DRBDADM invalidate-remote $DRBDRESOURCE
+	fi
 	$LOGDEBUG "SyncTarget..."
 	reconnect_drbd
 }
