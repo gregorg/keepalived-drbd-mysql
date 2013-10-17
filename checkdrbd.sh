@@ -245,7 +245,7 @@ set_drbd_secondary() {
 		return 1
 	fi
 	$LOGDEBUG "Sync DRBD"
-	if [ $SPLIT_BRAIN_METHOD == 1 ]
+	if [ $SPLIT_BRAIN_METHOD -eq 1 ]
 	then
 		$DRBDADM invalidate $DRBDRESOURCE
 	fi
@@ -385,7 +385,7 @@ set_master() {
 	fi
 
 	# We connect to DRBD _after_ MySQL has started, to limit IOPS
-	if [ $SPLIT_BRAIN_METHOD == 2 ]
+	if [ $SPLIT_BRAIN_METHOD -eq 2 ]
 	then
 		$DRBDADM invalidate-remote $DRBDRESOURCE
 	fi
